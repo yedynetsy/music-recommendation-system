@@ -56,6 +56,7 @@ def test_login_success():
 
 @pytest.mark.django_db
 def test_login_invalid_username():
+    User.objects.create_user(username="testuser", password="testpassword")
     client = APIClient()
     data = {
         "username": "nonexistentuser",
