@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'users',
     'artists',
+    'albums',
 ]
 
 AUTH_USER_MODEL = 'users.User'
