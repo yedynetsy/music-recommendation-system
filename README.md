@@ -38,9 +38,7 @@ the warm-user macro average. Users with no eligible target are also counted
 separately. Recall@K and NDCG@K average equally over eligible users.
 
 The shared global cutoff prevents future events from any user from entering
-training counts or the catalog. The result is a popularity baseline only:
-there are no measured Last.fm scores yet because the dataset is not included
-in this repository. Run a local measurement with:
+training counts or the catalog. Run a local measurement with:
 
 ```sh
 python -m recommendations.benchmark data/sample.tsv \
@@ -50,6 +48,44 @@ python -m recommendations.benchmark data/sample.tsv \
 Choose and record the cutoff before comparing models. The output includes
 the number of eligible warm users, cold users, users without eligible targets,
 and macro Recall@K and NDCG@K. ALS is a later step.
+
+### Measured Last.fm 1K baseline
+
+The following run used the original Last.fm 1K archive from the dataset record
+above (archive MD5 `a79a6808f54f73354789a9fb02cb1e41`; event TSV MD5
+`64747b21563e3d2aa95751e0ddc46b68`). The cutoff was
+`2009-01-01T00:00:00Z`, with `K=10`. To reproduce the reported sample:
+
+```sh
+python -m recommendations.prepare \
+  data/lastfm-dataset-1K/userid-timestamp-artid-artname-traid-traname.tsv \
+  data/sample-bucket-0-of-10.tsv --bucket-count 10 --bucket 0
+python -m recommendations.benchmark data/sample-bucket-0-of-10.tsv \
+  --cutoff 2009-01-01T00:00:00Z -k 10
+```
+
+| Measure | Result |
+| --- | ---: |
+| Source events | 19,150,868 |
+| Selected events (bucket 0 of 10) | 2,543,302 |
+| Selected events without track MBID | 342,750 (13.5%) |
+| Events in sample after filtering | 2,200,552 |
+| Sample users | 117 |
+| Training / holdout events | 1,931,776 / 268,776 |
+| Evaluable warm users / cold users / users without targets | 94 / 3 / 11 |
+| Recall@10 | 0.00051577 |
+| NDCG@10 | 0.01111683 |
+
+An initial 1-of-100 bucket sample had only 7 evaluable users and scored zero
+on both metrics. The 1-of-10 bucket was used to increase the evaluable group,
+not to select a better score. These are exploratory offline results, not a
+claim of recommendation quality. The metrics apply to this particular
+new-to-user, known-catalog protocol and popularity ranking; ALS has not yet
+been measured. One sampled event has a 2010 timestamp despite the dataset
+description's earlier end date; it was not silently removed. On the development
+Mac, sample preparation took 48.5 seconds, the benchmark took 6.5 seconds,
+and the benchmark process peaked at approximately 210 MB of resident memory.
+These measurements apply to this sample and machine only.
 
 ## Tests
 

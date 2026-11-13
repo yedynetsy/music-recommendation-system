@@ -21,7 +21,7 @@ class Listen:
 def read_listens(path: Path) -> Iterator[Listen]:
     """Read the original six-column TSV without loading it into memory."""
     with path.open(encoding="utf-8", newline="") as source:
-        for line_number, row in enumerate(csv.reader(source, delimiter="\t"), 1):
+        for line_number, row in enumerate(csv.reader(source, delimiter="\t", quoting=csv.QUOTE_NONE), 1):
             if len(row) != 6:
                 raise ValueError(f"line {line_number}: expected six TSV columns")
             user_id, raw_time, artist_id, artist_name, track_id, track_name = row
