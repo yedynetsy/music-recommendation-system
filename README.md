@@ -142,6 +142,9 @@ These measurements apply to this sample and machine only.
 
 ## Tests
 
+FastAPI tests live in `fastapi_app/tests/`; recommendation pipeline tests live
+in `recommendations/`.
+
 ```sh
 python -m pytest
 ```

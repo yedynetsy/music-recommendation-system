@@ -19,7 +19,7 @@ from fastapi_app.models import UserRow
 def test_fresh_migration_supports_catalog_and_authentication(tmp_path, monkeypatch):
     database = tmp_path / "catalog.sqlite3"
     url = f"sqlite:///{database}"
-    project_root = Path(__file__).resolve().parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent
     subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=project_root,
