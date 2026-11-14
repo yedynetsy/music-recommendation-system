@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from fastapi_app.main import app
 from fastapi_app.models import ArtistPreferenceRow, ExposureRow, ListenRow, TrackRow
-from fastapi_app.tests.test_artists import ADMIN_HEADERS, USER_HEADERS, client, test_engine
-from fastapi_app.tests.test_tracks import (FIRST, SECOND, THIRD, FUTURE, add_tracks,
-                                           serving_model)
+from tests.test_artists import ADMIN_HEADERS, USER_HEADERS, client, test_engine
+from tests.test_tracks import (FIRST, SECOND, THIRD, FUTURE, add_tracks,
+                               serving_model)
 from fastapi_app.tracks import get_serving_model
 
 

@@ -10,7 +10,7 @@ from fastapi_app.database import Base
 from fastapi_app.import_tracks import import_tracks
 from fastapi_app.main import app
 from fastapi_app.models import ExposureRow, ListenRow, TrackRow
-from fastapi_app.tests.test_artists import ADMIN_HEADERS, USER_HEADERS, client, test_engine
+from tests.test_artists import ADMIN_HEADERS, USER_HEADERS, client, test_engine
 from fastapi_app.tracks import get_serving_model, load_model
 from recommendations.serving import ServingModel
 

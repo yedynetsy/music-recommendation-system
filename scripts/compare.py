@@ -10,9 +10,9 @@ from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
 
-from .als import ALSConfig, fit_als
-from .evaluation import evaluate_popularity_data, evaluate_rankings, split_events
-from .lastfm import read_listens
+from recommendations.als import ALSConfig, fit_als
+from recommendations.evaluation import evaluate_popularity_data, evaluate_rankings, split_events
+from recommendations.lastfm import read_listens
 
 
 def main() -> None:

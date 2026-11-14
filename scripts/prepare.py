@@ -1,10 +1,10 @@
-"""Run with: python -m recommendations.prepare SOURCE.tsv OUTPUT.tsv"""
+"""Run with: python -m scripts.prepare SOURCE.tsv OUTPUT.tsv"""
 
 import argparse
 import json
 from pathlib import Path
 
-from .lastfm import prepare_sample
+from recommendations.lastfm import prepare_sample
 
 
 def main() -> None:

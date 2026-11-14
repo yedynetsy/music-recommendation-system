@@ -6,13 +6,12 @@ contains offline experiments and the model used for new-user inference.
 
 ## Backend setup
 
-Install the project and development dependencies, then create a fresh database
-from the repository root:
+Install the project, then create a fresh database from the repository root:
 
 ```sh
-python -m pip install -e '.[dev]'
+python -m pip install -e .
 python -m alembic upgrade head
-python -m fastapi_app.create_staff
+python -m scripts.create_staff
 python -m uvicorn fastapi_app.main:app --port 8001
 ```
 
@@ -78,10 +77,10 @@ After creating or upgrading the database, build the model artifact and import
 the matching pre-cutoff track catalog from the same sample and cutoff:
 
 ```sh
-OPENBLAS_NUM_THREADS=1 python -m recommendations.export \
+OPENBLAS_NUM_THREADS=1 python -m scripts.export \
   data/sample-bucket-0-of-10.tsv data/als-model.npz \
   --cutoff 2009-01-01T00:00:00Z
-python -m fastapi_app.import_tracks data/sample-bucket-0-of-10.tsv \
+python -m scripts.import_tracks data/sample-bucket-0-of-10.tsv \
   --cutoff 2009-01-01T00:00:00Z
 ```
 
@@ -138,7 +137,7 @@ commit the source file, sample, or model outputs. The dataset is available for
 non-commercial use and requires a reference to [Last.fm](https://www.last.fm/).
 
 ```sh
-python -m recommendations.prepare \
+python -m scripts.prepare \
   data/lastfm-1k/userid-timestamp-artid-artname-traid-traname.tsv \
   data/sample.tsv --bucket-count 100 --bucket 0
 ```
@@ -167,7 +166,7 @@ The shared global cutoff prevents future events from any user from entering
 training counts or the catalog. Run a local measurement with:
 
 ```sh
-python -m recommendations.benchmark data/sample.tsv \
+python -m scripts.benchmark data/sample.tsv \
   --cutoff 2009-01-01T00:00:00Z -k 10
 ```
 
@@ -175,11 +174,11 @@ Choose and record the cutoff before comparing models. The output includes
 the number of eligible warm users, cold users, users without eligible targets,
 and macro Recall@K and NDCG@K.
 
-`recommendations.compare` reads the sample once and applies this exact split
+`scripts.compare` reads the sample once and applies this exact split
 and candidate policy to both popularity and implicit-feedback ALS:
 
 ```sh
-OPENBLAS_NUM_THREADS=1 python -m recommendations.compare \
+OPENBLAS_NUM_THREADS=1 python -m scripts.compare \
   data/sample-bucket-0-of-10.tsv --cutoff 2009-01-01T00:00:00Z -k 10
 ```
 
@@ -201,10 +200,10 @@ above (archive MD5 `a79a6808f54f73354789a9fb02cb1e41`; event TSV MD5
 `2009-01-01T00:00:00Z`, with `K=10`. To reproduce the reported sample:
 
 ```sh
-python -m recommendations.prepare \
+python -m scripts.prepare \
   data/lastfm-dataset-1K/userid-timestamp-artid-artname-traid-traname.tsv \
   data/sample-bucket-0-of-10.tsv --bucket-count 10 --bucket 0
-python -m recommendations.benchmark data/sample-bucket-0-of-10.tsv \
+python -m scripts.benchmark data/sample-bucket-0-of-10.tsv \
   --cutoff 2009-01-01T00:00:00Z -k 10
 ```
 
@@ -239,11 +238,33 @@ apply to this sample and machine only. The API uses the offline item factors
 for new-user inference; the offline evaluation metrics do not measure this
 new-user path.
 
-## Tests
+## Streamlit demo
 
-FastAPI tests live in `fastapi_app/tests/`; recommendation pipeline tests live
-in `recommendations/`.
+Install the optional UI dependencies, then run the API and demo in separate
+terminals from the repository root:
 
 ```sh
+python -m pip install -e '.[demo]'
+python -m uvicorn fastapi_app.main:app --port 8001
+python -m streamlit run music_demo/app.py --server.address 127.0.0.1
+```
+
+The demo opens at `http://127.0.0.1:8501` and calls the API at
+`http://127.0.0.1:8001` by default. Set `MUSIC_API_URL` or change the address
+in the sidebar. Sign in or create a regular account, select artists by
+MusicBrainz ID, request recommendations, search the catalog, record listens,
+and inspect similar tracks. The API needs a migrated database, imported
+pre-cutoff catalog, and matching model artifact as described above. Tokens are
+kept in the Streamlit session for the local demo; use only on a trusted machine.
+The UI does not retrain the model. Its results are not a live quality measure.
+
+## Tests
+
+All tests live in `tests/`. The `recommendations/` package contains only
+framework-independent ML logic; runnable data and setup commands live in
+`scripts/`.
+
+```sh
+python -m pip install -e '.[dev]'
 python -m pytest
 ```

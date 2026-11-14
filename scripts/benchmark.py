@@ -1,4 +1,4 @@
-"""Run with: python -m recommendations.benchmark SAMPLE.tsv --cutoff 2009-01-01T00:00:00Z"""
+"""Run with: python -m scripts.benchmark SAMPLE.tsv --cutoff 2009-01-01T00:00:00Z"""
 
 import argparse
 import json
@@ -6,8 +6,8 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-from .evaluation import evaluate_popularity
-from .lastfm import read_listens
+from recommendations.evaluation import evaluate_popularity
+from recommendations.lastfm import read_listens
 
 
 def main() -> None:

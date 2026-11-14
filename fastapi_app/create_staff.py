@@ -1,7 +1,5 @@
 """Create the first staff account from a trusted local terminal."""
 
-from getpass import getpass
-
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -24,17 +22,7 @@ def create_staff(username: str, password: str) -> None:
             raise ValueError("Could not create staff user; username may already exist.") from error
 
 
-def main() -> None:
-    username = input("Staff username: ").strip()
-    password = getpass("Password: ")
-    if password != getpass("Confirm password: "):
-        raise SystemExit("Passwords do not match.")
-    try:
-        create_staff(username, password)
-    except ValueError as error:
-        raise SystemExit(str(error)) from error
-    print("Staff account created.")
-
-
 if __name__ == "__main__":
+    from scripts.create_staff import main
+
     main()

@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from fastapi_app.models import AlbumRow
-from fastapi_app.tests.test_artists import ADMIN_HEADERS, USER_HEADERS, client, test_engine
+from tests.test_artists import ADMIN_HEADERS, USER_HEADERS, client, test_engine
 
 
 @pytest.fixture

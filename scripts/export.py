@@ -6,10 +6,10 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from .als import ALSConfig, fit_als
-from .evaluation import split_events
-from .lastfm import read_listens
-from .serving import save_artifact
+from recommendations.als import ALSConfig, fit_als
+from recommendations.evaluation import split_events
+from recommendations.lastfm import read_listens
+from recommendations.serving import save_artifact
 
 
 def file_sha256(path: Path) -> str:

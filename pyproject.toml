@@ -15,13 +15,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+demo = [
+    "httpx>=0.28,<0.29",
+    "streamlit>=1.64,<1.65",
+]
 dev = [
     "pytest>=8.0,<9.0",
     "httpx>=0.28,<0.29",
+    "streamlit>=1.64,<1.65",
 ]
 
 [tool.setuptools.packages.find]
-include = ["fastapi_app*", "recommendations*"]
+include = ["fastapi_app*", "recommendations*", "music_demo*", "scripts*"]
 
 [tool.pytest.ini_options]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
