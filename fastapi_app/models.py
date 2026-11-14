@@ -1,9 +1,9 @@
 """Existing Django table columns needed by the migrated API routes."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
@@ -49,4 +49,10 @@ class AlbumRow(Base):
     __tablename__ = "albums_album"
 
     id: Mapped[int] = mapped_column(primary_id, primary_key=True)
-    artist_id: Mapped[int] = mapped_column(BigInteger)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text, default="")
+    release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    artist_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("artists_artist.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    artist: Mapped[ArtistRow] = relationship()

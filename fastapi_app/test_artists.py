@@ -152,7 +152,11 @@ def test_delete_unknown_artist_returns_404(client):
 def test_artist_with_albums_cannot_be_deleted(client, test_engine):
     # The test database is isolated, so this checks the same protection as Django PROTECT.
     with Session(test_engine) as session:
-        session.add(AlbumRow(id=1, artist_id=1))
+        session.add(AlbumRow(
+            id=1, name="Nevermind", artist_id=1,
+            created_at=datetime(2009, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2009, 1, 1, tzinfo=timezone.utc),
+        ))
         session.commit()
     response = client.delete("/api/artists/1/", headers=ADMIN_HEADERS)
     assert response.status_code == 409

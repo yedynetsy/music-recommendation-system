@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .auth import require_admin
+from .albums import UnknownArtistError, router as album_router
 from .database import get_session
 from .models import AlbumRow, ArtistRow
 from .schemas import ArtistPatch, ArtistResponse, ArtistWrite
@@ -19,11 +20,17 @@ from .users import router as user_router
 
 app = FastAPI(title="Music Recommendation API")
 app.include_router(user_router)
+app.include_router(album_router)
+
+
+@app.exception_handler(UnknownArtistError)
+async def unknown_album_artist(request: Request, error: UnknownArtistError):
+    return JSONResponse(status_code=400, content={"artist": ["Invalid artist ID."]})
 
 
 @app.exception_handler(RequestValidationError)
 async def input_validation_error(request: Request, error: RequestValidationError):
-    is_migrated_route = request.url.path.startswith(("/api/artists/", "/api/user/"))
+    is_migrated_route = request.url.path.startswith(("/api/artists/", "/api/albums/", "/api/user/"))
     if request.method not in {"POST", "PUT", "PATCH"} or not is_migrated_route:
         return await request_validation_exception_handler(request, error)
     details: dict[str, list[str]] = {}
