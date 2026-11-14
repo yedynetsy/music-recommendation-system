@@ -3,25 +3,21 @@ name = "music-recommendation-system"
 version = "0.1.0"
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "django>=5.2,<5.3",
-    "djangorestframework>=3.16,<3.17",
     "psycopg[binary]>=3.2,<3.3",
-    "django-environ>=0.12,<0.13",
     "fastapi==0.162.5",
     "uvicorn>=0.54,<0.55",
     "sqlalchemy>=2.0.57,<2.1",
+    "alembic>=1.20,<2",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0,<9.0",
-    "pytest-django>=4.9,<5.0",
     "httpx>=0.28,<0.29",
 ]
 
-[tool.setuptools]
-packages = []
+[tool.setuptools.packages.find]
+include = ["fastapi_app*", "recommendations*"]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]

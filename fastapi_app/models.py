@@ -1,4 +1,4 @@
-"""Existing Django table columns needed by the migrated API routes."""
+"""Catalog tables; legacy names preserve existing local database records."""
 
 from datetime import date, datetime, timezone
 
@@ -41,7 +41,7 @@ class TokenRow(Base):
     __tablename__ = "authtoken_token"
 
     key: Mapped[str] = mapped_column(String(40), primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users_user.id"), unique=True)
     created: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 

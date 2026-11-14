@@ -1,10 +1,11 @@
-"""Shared Django-token authentication during the API migration."""
+"""Token authentication and PBKDF2 password compatibility."""
 
-import os
+import base64
+import hashlib
 import secrets
+import string
 from datetime import datetime, timezone
 
-from django.contrib.auth.hashers import check_password, make_password
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,19 +14,26 @@ from .database import get_session
 from .models import TokenRow, UserRow
 
 
-def _use_django_hashers() -> None:
-    # Keep existing Django password hashes valid until user storage is migrated.
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+PASSWORD_ITERATIONS = 1_000_000
+SALT_ALPHABET = string.ascii_letters + string.digits
 
 
 def hash_password(password: str) -> str:
-    _use_django_hashers()
-    return make_password(password)
+    salt = "".join(secrets.choice(SALT_ALPHABET) for _ in range(22))
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), PASSWORD_ITERATIONS)
+    return f"pbkdf2_sha256${PASSWORD_ITERATIONS}${salt}${base64.b64encode(digest).decode()}"
 
 
 def verify_password(password: str, encoded: str) -> bool:
-    _use_django_hashers()
-    return check_password(password, encoded)
+    try:
+        algorithm, iteration_text, salt, expected = encoded.split("$")
+        iterations = int(iteration_text)
+        if algorithm != "pbkdf2_sha256" or not 1 <= iterations <= 10_000_000:
+            return False
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), iterations)
+        return secrets.compare_digest(base64.b64encode(actual).decode(), expected)
+    except (TypeError, ValueError):
+        return False
 
 
 def get_or_create_token(session: Session, user_id: int) -> TokenRow:

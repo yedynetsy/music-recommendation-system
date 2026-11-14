@@ -1,4 +1,4 @@
-"""Request validation and response shapes for the migrated API routes."""
+"""Request validation and response shapes for the API routes."""
 
 from datetime import date, datetime, timezone
 import re

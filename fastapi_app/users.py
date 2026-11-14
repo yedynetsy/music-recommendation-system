@@ -1,4 +1,4 @@
-"""Registration, login, and logout using the existing Django user tables."""
+"""Registration, login, and logout for the catalog API."""
 
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
