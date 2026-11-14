@@ -1,8 +1,10 @@
-"""Artist request validation and response shape."""
+"""Request validation and response shapes for the migrated API routes."""
 
 from datetime import datetime, timezone
+import re
+import unicodedata
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 
 class ArtistResponse(BaseModel):
@@ -47,3 +49,37 @@ class ArtistPatch(BaseModel):
             if getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self
+
+
+class RegisterInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: str = Field(min_length=1, max_length=150)
+    password: str = Field(min_length=1)
+    password_confirm: str = Field(min_length=1)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        value = unicodedata.normalize("NFKC", value)
+        if len(value) > 150 or re.fullmatch(r"[\w.@+-]+", value) is None:
+            raise ValueError("Enter a valid username.")
+        return value
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.password_confirm:
+            raise ValueError("Passwords do not match.")
+        return self
+
+
+class LoginInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class TokenResponse(BaseModel):
+    token: str
+    username: str

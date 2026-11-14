@@ -1,8 +1,8 @@
-"""Artist catalog routes during the Django-to-FastAPI migration."""
+"""FastAPI routes during the incremental Django migration."""
 
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -10,40 +10,27 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .auth import require_admin
 from .database import get_session
-from .models import AlbumRow, ArtistRow, TokenRow, UserRow
+from .models import AlbumRow, ArtistRow
 from .schemas import ArtistPatch, ArtistResponse, ArtistWrite
+from .users import router as user_router
 
 
 app = FastAPI(title="Music Recommendation API")
+app.include_router(user_router)
 
 
 @app.exception_handler(RequestValidationError)
-async def artist_validation_error(request: Request, error: RequestValidationError):
-    if request.method not in {"POST", "PUT", "PATCH"} or not request.url.path.startswith("/api/artists/"):
+async def input_validation_error(request: Request, error: RequestValidationError):
+    is_migrated_route = request.url.path.startswith(("/api/artists/", "/api/user/"))
+    if request.method not in {"POST", "PUT", "PATCH"} or not is_migrated_route:
         return await request_validation_exception_handler(request, error)
     details: dict[str, list[str]] = {}
     for issue in error.errors():
         field = str(issue["loc"][-1]) if len(issue["loc"]) > 1 else "non_field_errors"
         details.setdefault(field, []).append(issue["msg"])
     return JSONResponse(status_code=400, content=details)
-
-
-def require_admin(
-    authorization: str | None = Header(default=None),
-    session: Session = Depends(get_session),
-) -> None:
-    parts = authorization.split() if authorization else []
-    if len(parts) != 2 or parts[0].lower() != "token":
-        raise HTTPException(401, detail="Authentication credentials were not provided.",
-                            headers={"WWW-Authenticate": "Token"})
-    user = session.scalar(
-        select(UserRow).join(TokenRow, UserRow.id == TokenRow.user_id).where(TokenRow.key == parts[1])
-    )
-    if user is None or not user.is_active:
-        raise HTTPException(401, detail="Invalid token.", headers={"WWW-Authenticate": "Token"})
-    if not user.is_staff:
-        raise HTTPException(403, detail="You do not have permission to perform this action.")
 
 
 def find_artist(session: Session, artist_id: int) -> ArtistRow:
