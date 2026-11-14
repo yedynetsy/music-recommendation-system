@@ -63,8 +63,15 @@ class TrackRow(Base):
 
     mbid: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str | None] = mapped_column(Text, nullable=True)
-    artist_mbid: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    artist_mbid: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     artist_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ArtistPreferenceRow(Base):
+    __tablename__ = "recommendation_artist_preference"
+
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users_user.id"), primary_key=True)
+    artist_mbid: Mapped[str] = mapped_column(String(36), primary_key=True)
 
 
 class ListenRow(Base):

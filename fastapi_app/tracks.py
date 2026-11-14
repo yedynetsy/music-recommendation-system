@@ -7,15 +7,16 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from recommendations.serving import ServingModel
 
 from .auth import authenticated_user
 from .database import get_session
-from .models import ExposureRow, ListenRow, TrackRow, UserRow
-from .schemas import ListenResponse, RecommendationResponse, TrackResponse
+from .models import ArtistPreferenceRow, ExposureRow, ListenRow, TrackRow, UserRow
+from .schemas import (ArtistChoice, ArtistChoiceResponse, CatalogArtistResponse,
+                      ListenResponse, RecommendationResponse, TrackResponse)
 
 
 router = APIRouter(tags=["tracks"])
@@ -70,6 +71,65 @@ def record_listen(track_mbid: UUID, user: UserRow = Depends(authenticated_user),
     return event
 
 
+@router.get("/api/onboarding/artists/search/", response_model=list[CatalogArtistResponse])
+def search_catalog_artists(query: str = Query(min_length=1),
+                           limit: int = Query(20, ge=1, le=50),
+                           session: Session = Depends(get_session)) -> list[CatalogArtistResponse]:
+    rows = session.execute(
+        select(TrackRow.artist_mbid, func.min(TrackRow.artist_name))
+        .where(TrackRow.artist_mbid.is_not(None), TrackRow.artist_name.is_not(None),
+               TrackRow.artist_name.ilike(f"%{query}%"))
+        .group_by(TrackRow.artist_mbid)
+        .order_by(func.min(TrackRow.artist_name), TrackRow.artist_mbid).limit(limit)
+    )
+    return [CatalogArtistResponse(mbid=mbid, name=name) for mbid, name in rows]
+
+
+@router.get("/api/onboarding/artists/", response_model=ArtistChoiceResponse)
+def get_artist_choices(user: UserRow = Depends(authenticated_user),
+                       session: Session = Depends(get_session)) -> ArtistChoiceResponse:
+    ids = session.scalars(select(ArtistPreferenceRow.artist_mbid)
+                          .where(ArtistPreferenceRow.user_id == user.id)
+                          .order_by(ArtistPreferenceRow.artist_mbid)).all()
+    return ArtistChoiceResponse(artist_mbids=list(ids))
+
+
+@router.put("/api/onboarding/artists/", response_model=ArtistChoiceResponse)
+def set_artist_choices(payload: ArtistChoice, user: UserRow = Depends(authenticated_user),
+                       session: Session = Depends(get_session)) -> ArtistChoiceResponse:
+    ids = sorted(str(mbid) for mbid in payload.artist_mbids)
+    if ids:
+        found = set(session.scalars(select(TrackRow.artist_mbid)
+                                    .where(TrackRow.artist_mbid.in_(ids)).distinct()))
+        if found != set(ids):
+            raise HTTPException(422, detail="Artist MBID is absent from the track catalog.")
+    session.execute(delete(ArtistPreferenceRow).where(ArtistPreferenceRow.user_id == user.id))
+    session.add_all(ArtistPreferenceRow(user_id=user.id, artist_mbid=mbid) for mbid in ids)
+    session.commit()
+    return ArtistChoiceResponse(artist_mbids=ids)
+
+
+def onboarding_seeds(session: Session, user_id: int, model: ServingModel) -> dict[str, int]:
+    """Choose up to three known, popular tracks per selected artist."""
+    artist_ids = session.scalars(select(ArtistPreferenceRow.artist_mbid)
+                                 .where(ArtistPreferenceRow.user_id == user_id)).all()
+    if not artist_ids:
+        return {}
+    best: dict[str, list[tuple[int, str]]] = {mbid: [] for mbid in artist_ids}
+    for artist_mbid, track_mbid in session.execute(
+        select(TrackRow.artist_mbid, TrackRow.mbid)
+        .where(TrackRow.artist_mbid.in_(artist_ids)).execution_options(yield_per=1000)
+    ):
+        index = model.track_index.get(track_mbid)
+        if index is None:
+            continue
+        tracks = best[artist_mbid]
+        tracks.append((int(model.popularity[index]), track_mbid))
+        tracks.sort(key=lambda item: (-item[0], item[1]))
+        del tracks[3:]
+    return {track_mbid: 1 for tracks in best.values() for _, track_mbid in tracks}
+
+
 @router.get("/api/recommendations/", response_model=RecommendationResponse)
 def recommend_tracks(limit: int = Query(10, ge=1, le=50),
                      user: UserRow = Depends(authenticated_user),
@@ -79,7 +139,12 @@ def recommend_tracks(limit: int = Query(10, ge=1, le=50),
         select(ListenRow.track_mbid, func.count(ListenRow.id))
         .where(ListenRow.user_id == user.id).group_by(ListenRow.track_mbid)
     ).all())
-    source, track_ids = model.rank(listens, limit)
+    known_listens = any(count > 0 and mbid in model.track_index
+                        for mbid, count in listens.items())
+    seeds = {} if known_listens else onboarding_seeds(session, user.id, model)
+    source, track_ids = model.rank(listens if known_listens else seeds, limit)
+    if seeds and source == "als":
+        source = "onboarding"
     tracks = {track.mbid: track for track in session.scalars(
         select(TrackRow).where(TrackRow.mbid.in_(track_ids))
     )}

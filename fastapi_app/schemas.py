@@ -2,6 +2,7 @@
 
 from datetime import date, datetime, timezone
 from typing import Literal
+from uuid import UUID
 import re
 import unicodedata
 
@@ -159,6 +160,26 @@ class ListenResponse(BaseModel):
 
 
 class RecommendationResponse(BaseModel):
-    source: Literal["als", "popularity"]
+    source: Literal["als", "popularity", "onboarding"]
     model_version: str
     items: list[TrackResponse]
+
+
+class ArtistChoice(BaseModel):
+    artist_mbids: list[UUID] = Field(max_length=10)
+
+    @field_validator("artist_mbids")
+    @classmethod
+    def unique_artists(cls, values: list[UUID]) -> list[UUID]:
+        if len(values) != len(set(values)):
+            raise ValueError("artist MBIDs must be unique")
+        return values
+
+
+class ArtistChoiceResponse(BaseModel):
+    artist_mbids: list[str]
+
+
+class CatalogArtistResponse(BaseModel):
+    mbid: str
+    name: str
