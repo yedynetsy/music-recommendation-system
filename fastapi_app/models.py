@@ -1,6 +1,6 @@
-"""Only the existing Django table columns needed by the artist routes."""
+"""Existing Django table columns needed by the migrated API routes."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,15 +25,24 @@ class UserRow(Base):
     __tablename__ = "users_user"
 
     id: Mapped[int] = mapped_column(primary_id, primary_key=True)
-    is_staff: Mapped[bool] = mapped_column(Boolean)
-    is_active: Mapped[bool] = mapped_column(Boolean)
+    password: Mapped[str] = mapped_column(String(128), default="")
+    last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
+    username: Mapped[str] = mapped_column(String(150), unique=True)
+    first_name: Mapped[str] = mapped_column(String(150), default="")
+    last_name: Mapped[str] = mapped_column(String(150), default="")
+    email: Mapped[str] = mapped_column(String(254), default="")
+    is_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    date_joined: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class TokenRow(Base):
     __tablename__ = "authtoken_token"
 
     key: Mapped[str] = mapped_column(String(40), primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger)
+    user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    created: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class AlbumRow(Base):

@@ -14,16 +14,23 @@ fresh local database. From the repository root, with dependencies installed:
 python -m uvicorn fastapi_app.main:app --port 8001
 ```
 
+`POST /api/user/register/` creates a user and returns a token (`201`).
+`POST /api/user/login/` returns a token for valid credentials (`200`), reusing
+an existing token. `POST /api/user/logout/` revokes that token (`204`). These
+routes share Django's user and token tables and use Django's password hashers
+to keep existing accounts valid during migration. The local Django settings
+and `.env` are still needed for password hashing. Send JSON request bodies to
+the FastAPI registration and login routes.
+
 `GET /api/artists/` lists artists by name. `GET /api/artists/{id}/` returns one
 artist or `404`. Both routes are public. `POST /api/artists/` and `PUT`, `PATCH`,
-and `DELETE /api/artists/{id}/` require an active staff user's Django REST
-Framework token in the `Authorization: Token <key>` header. The Django login
-endpoint (`POST /api/user/login/` on the Django server) issues these tokens.
+and `DELETE /api/artists/{id}/` require an active staff user's token in the
+`Authorization: Token <key>` header. A token from either API works.
 Invalid artist input returns `400`; deleting an artist with albums returns
 `409` and keeps the artist. The default database is the project's local
 `db.sqlite3`; `MUSIC_DATABASE_URL` can override the SQLAlchemy connection URL.
-Only local SQLite behavior has been verified. Django still serves the user and
-album routes and retains its own artist routes on its separate server during
+Only local SQLite behavior has been verified. Django still serves the album
+routes and retains its own user and artist routes on its separate server during
 migration. The FastAPI app does not create or migrate database tables.
 
 ## Last.fm 1K development sample

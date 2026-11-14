@@ -25,9 +25,9 @@ def test_engine(tmp_path):
         session.add_all([
             ArtistRow(id=2, name="Radiohead", bio="", created_at=timestamp, updated_at=timestamp),
             ArtistRow(id=1, name="Nirvana", bio="Rock band", created_at=timestamp, updated_at=timestamp),
-            UserRow(id=1, is_staff=True, is_active=True),
-            UserRow(id=2, is_staff=False, is_active=True),
-            UserRow(id=3, is_staff=True, is_active=False),
+            UserRow(id=1, username="admin", is_staff=True, is_active=True),
+            UserRow(id=2, username="regular", is_staff=False, is_active=True),
+            UserRow(id=3, username="inactive", is_staff=True, is_active=False),
             TokenRow(key="a" * 40, user_id=1),
             TokenRow(key="u" * 40, user_id=2),
             TokenRow(key="i" * 40, user_id=3),
