@@ -1,18 +1,24 @@
 """Registration and token compatibility checks for the migrated user API."""
 
 import pytest
-from django.contrib.auth.hashers import check_password
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from fastapi_app.auth import hash_password
+from fastapi_app.auth import hash_password, verify_password
 from fastapi_app.database import Base, get_session
 from fastapi_app.main import app
 from fastapi_app.models import TokenRow, UserRow
 
 
 PASSWORD = "testpassword"
+
+
+def test_existing_pbkdf2_hash_remains_valid_without_django():
+    encoded = "pbkdf2_sha256$1000000$fixedsalt$h8Jwb0kmHn1Oj+ycavQ1T4lr1ORMz+2h909uq58pDMk="
+    assert verify_password("legacy-password", encoded)
+    assert not verify_password("wrong-password", encoded)
+    assert not verify_password("legacy-password", "invalid")
 
 
 @pytest.fixture
@@ -46,7 +52,7 @@ def client(test_engine):
         app.dependency_overrides.clear()
 
 
-def test_register_creates_django_compatible_user_and_token(client, test_engine):
+def test_register_creates_user_and_token(client, test_engine):
     response = client.post("/api/user/register/", json={
         "username": "new_user", "password": PASSWORD, "password_confirm": PASSWORD,
     })
@@ -57,7 +63,7 @@ def test_register_creates_django_compatible_user_and_token(client, test_engine):
         user = session.scalar(select(UserRow).where(UserRow.username == "new_user"))
         assert user is not None
         assert user.password != PASSWORD
-        assert check_password(PASSWORD, user.password)
+        assert verify_password(PASSWORD, user.password)
         assert not user.is_staff
         assert session.scalar(select(TokenRow).where(TokenRow.user_id == user.id)).key == response.json()["token"]
     assert client.post("/api/artists/", json={"name": "Muse"}, headers={

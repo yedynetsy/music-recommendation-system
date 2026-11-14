@@ -1,4 +1,4 @@
-"""FastAPI routes during the incremental Django migration."""
+"""Music catalog API."""
 
 from datetime import datetime, timezone
 
@@ -30,8 +30,8 @@ async def unknown_album_artist(request: Request, error: UnknownArtistError):
 
 @app.exception_handler(RequestValidationError)
 async def input_validation_error(request: Request, error: RequestValidationError):
-    is_migrated_route = request.url.path.startswith(("/api/artists/", "/api/albums/", "/api/user/"))
-    if request.method not in {"POST", "PUT", "PATCH"} or not is_migrated_route:
+    is_api_route = request.url.path.startswith(("/api/artists/", "/api/albums/", "/api/user/"))
+    if request.method not in {"POST", "PUT", "PATCH"} or not is_api_route:
         return await request_validation_exception_handler(request, error)
     details: dict[str, list[str]] = {}
     for issue in error.errors():

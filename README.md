@@ -1,35 +1,51 @@
 # Music Recommendation System
 
-This project has a Django/DRF API for users, artists, and albums. A separate
-FastAPI app now serves user authentication and the artist and album catalog.
-The framework-independent `recommendations` package contains the offline
-recommendation experiments.
+The backend is a FastAPI catalog and token-authentication API backed by
+SQLAlchemy and Alembic. The framework-independent `recommendations` package
+contains the offline recommendation experiments.
 
-## FastAPI catalog and authentication
+## Backend setup
 
-The FastAPI app reads the existing artist and album tables through SQLAlchemy.
-Django migrations still own those tables, so run them before starting against a
-fresh local database. From the repository root, with dependencies installed:
+Install the project and development dependencies, then create a fresh database
+from the repository root:
 
 ```sh
+python -m pip install -e '.[dev]'
+python -m alembic upgrade head
+python -m fastapi_app.create_staff
 python -m uvicorn fastapi_app.main:app --port 8001
 ```
+
+The default URL is `sqlite:///db.sqlite3` in the repository root. Set
+`MUSIC_DATABASE_URL` for another SQLite database or PostgreSQL; both Alembic
+and the API use it. The app never creates tables automatically. The initial
+Alembic revision creates only users, tokens, artists, and albums. It retains
+the old table names so existing local catalog data and PBKDF2-SHA256 password
+hashes remain readable. The password verifier supports that hash format;
+accounts using a different legacy hash algorithm require a password reset.
+
+An existing database created by the previous backend already has these tables.
+Back it up and inspect its schema before running `python -m alembic stamp head`
+once; `upgrade head` is for a fresh database. The stamp records the baseline
+without recreating tables. The old local `db.sqlite3` is ignored by Git and is
+not modified by this repository change.
+
+## Catalog and authentication
 
 `POST /api/user/register/` creates a user and returns a token (`201`).
 `POST /api/user/login/` returns a token for valid credentials (`200`), reusing
 an existing token. `POST /api/user/logout/` revokes that token (`204`). These
-routes share Django's user and token tables and use Django's password hashers
-to keep existing accounts valid during migration. The local Django settings
-and `.env` are still needed for password hashing. Send JSON request bodies to
-the FastAPI registration and login routes.
+routes accept JSON request bodies. Registering creates a regular user; catalog
+writes require a staff account. No public endpoint grants staff access.
+The local `create_staff` command prompts for a username and hidden password;
+run it after the migration to create the first staff account.
 
 `GET /api/artists/` lists artists by name. `GET /api/artists/{id}/` returns one
 artist or `404`. Both routes are public. `POST /api/artists/` and `PUT`, `PATCH`,
 and `DELETE /api/artists/{id}/` require an active staff user's token in the
-`Authorization: Token <key>` header. A token from either API works.
+`Authorization: Token <key>` header.
 Invalid artist input returns `400`; deleting an artist with albums returns
-`409` and keeps the artist. The default database is the project's local
-`db.sqlite3`; `MUSIC_DATABASE_URL` can override the SQLAlchemy connection URL.
+`409` and keeps the artist.
 
 `GET /api/albums/` lists albums by name and `GET /api/albums/{id}/` returns an
 album with both `artist` (ID) and `artist_detail` (artist object). Both are
@@ -38,10 +54,8 @@ public. `POST /api/albums/` and `PUT`, `PATCH`, and `DELETE` on
 requires a name and an existing artist ID; description and release date are
 optional. Invalid input or an unknown artist returns `400`, and an unknown
 album returns `404`. Updates retain optional fields when omitted; send
-`release_date: null` to clear a date. Only local SQLite behavior has been
-verified. Django retains its user, artist, and album routes on its separate
-server during migration. The FastAPI app does not create or migrate tables;
-Django migrations still own their schema.
+`release_date: null` to clear a date. SQLite behavior has been tested locally;
+PostgreSQL has not yet been verified.
 
 ## Last.fm 1K development sample
 
@@ -129,8 +143,5 @@ These measurements apply to this sample and machine only.
 ## Tests
 
 ```sh
-python -m pytest recommendations
+python -m pytest
 ```
-
-The existing Django tests require the project's development dependencies and
-the local `.env` configuration.
