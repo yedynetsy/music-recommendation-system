@@ -26,7 +26,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["fastapi_app*", "recommendations*", "music_demo*", "scripts*"]
+include = ["backend*", "recommendations*", "demo*", "scripts*"]
 
 [tool.pytest.ini_options]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]

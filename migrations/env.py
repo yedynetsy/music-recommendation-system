@@ -3,8 +3,8 @@
 from alembic import context
 from sqlalchemy import create_engine
 
-from fastapi_app.database import Base, database_url
-from fastapi_app import models  # noqa: F401 - register mapped tables
+from backend.database import Base, database_url
+from backend import models  # noqa: F401 - register mapped tables
 
 
 target_metadata = Base.metadata

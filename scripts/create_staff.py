@@ -2,7 +2,7 @@
 
 from getpass import getpass
 
-from fastapi_app.create_staff import create_staff
+from backend.services.accounts import create_staff
 
 
 def main() -> None:
