@@ -27,6 +27,12 @@ model remains `data/als-model.npz`. `MUSIC_DATABASE_URL` and `MUSIC_MODEL_PATH`
 override these paths. Existing table names, Alembic revisions, API URLs, and
 artifact format are preserved by the source reorganization.
 
+Compose uses separate `MUSIC_POSTGRES_HOST`, `MUSIC_POSTGRES_PORT` (default
+5432), `MUSIC_POSTGRES_USER`, `MUSIC_POSTGRES_DB`, and `MUSIC_POSTGRES_PASSWORD`
+settings to construct a psycopg URL. An explicit `MUSIC_DATABASE_URL` takes
+precedence. See [containers.md](containers.md) for startup, migrations,
+persistence, and the PostgreSQL integration checks.
+
 ## Recommendation package
 
 - `lastfm.py`: streaming Last.fm event reader and deterministic user sampling.

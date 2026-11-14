@@ -1,0 +1,25 @@
+# Allow only runtime source and test inputs into the build context.
+**
+!Dockerfile
+!pyproject.toml
+!README.md
+!LICENSE
+!alembic.ini
+!backend/
+!backend/**/*.py
+!recommendations/
+!recommendations/**/*.py
+!demo/
+!demo/**/*.py
+!scripts/
+!scripts/**/*.py
+!migrations/
+!migrations/**/*.py
+!tests/
+!tests/**/*.py
+**/__pycache__/
+**/*.py[codz]
+**/.DS_Store
+**/.env*
+**/*.npz
+**/*.sqlite3*

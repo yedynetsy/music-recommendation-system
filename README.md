@@ -18,6 +18,10 @@ contains offline experiments and the model used for new-user inference.
 
 ## Backend setup
 
+For PostgreSQL with a containerized API and demo, see
+[Docker Compose setup](docs/containers.md). The local setup below uses SQLite
+unless configured otherwise.
+
 Install the project, then create a fresh database from the repository root:
 
 ```sh
@@ -72,8 +76,8 @@ public. `POST /api/albums/` and `PUT`, `PATCH`, and `DELETE` on
 requires a name and an existing artist ID; description and release date are
 optional. Invalid input or an unknown artist returns `400`, and an unknown
 album returns `404`. Updates retain optional fields when omitted; send
-`release_date: null` to clear a date. SQLite behavior has been tested locally;
-PostgreSQL has not yet been verified.
+`release_date: null` to clear a date. PostgreSQL integration checks and their
+opt-in command are documented in [containers.md](docs/containers.md#verify).
 
 ## Track catalog and recommendations
 

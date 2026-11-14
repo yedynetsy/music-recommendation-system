@@ -1,0 +1,84 @@
+name: music-recommendation
+
+x-database-environment: &database-environment
+  MUSIC_POSTGRES_HOST: db
+  MUSIC_POSTGRES_USER: music
+  MUSIC_POSTGRES_DB: music
+  MUSIC_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.compose}
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: music
+      POSTGRES_DB: music
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.compose}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U music -d music"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      target: runtime
+    image: music-recommendation:local
+    environment: *database-environment
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: runtime
+    image: music-recommendation:local
+    environment:
+      <<: *database-environment
+      MUSIC_MODEL_PATH: /app/data/als-model.npz
+    ports:
+      - "127.0.0.1:${MUSIC_API_PORT:-8001}:8001"
+    volumes:
+      - ./data:/app/data:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/tracks/?limit=1', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  demo:
+    build:
+      context: .
+      target: runtime
+    image: music-recommendation:local
+    environment:
+      MUSIC_API_URL: http://api:8001
+    command: ["python", "-m", "streamlit", "run", "demo/app.py", "--server.address", "0.0.0.0", "--browser.gatherUsageStats", "false"]
+    ports:
+      - "127.0.0.1:${MUSIC_DEMO_PORT:-8501}:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      target: test
+    image: music-recommendation-tests:local
+    environment:
+      <<: *database-environment
+      MUSIC_TEST_POSTGRES: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
