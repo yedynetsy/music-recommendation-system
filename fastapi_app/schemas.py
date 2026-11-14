@@ -160,7 +160,7 @@ class ListenResponse(BaseModel):
 
 
 class RecommendationResponse(BaseModel):
-    source: Literal["als", "popularity", "onboarding"]
+    source: Literal["als", "popularity", "onboarding", "similar"]
     model_version: str
     items: list[TrackResponse]
 

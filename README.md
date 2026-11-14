@@ -116,7 +116,15 @@ profile. These seeds are not recorded as listens. If the chosen artists have
 no model-known tracks, the response uses popularity. Once the user has known
 app listens, those take precedence over onboarding choices. Neither onboarding
 nor new-user inference was measured by the offline warm-user evaluation.
-Similar-track routes are future work. A full local flow with the 254,730-track
+`GET /api/tracks/{mbid}/similar/?limit=10` returns up to 50 model-known tracks
+ranked by cosine similarity of ALS item factors. It requires a user token so
+returned tracks can be logged as exposures with `source: "similar"`. The seed
+track is excluded; duplicate names remain distinct MBIDs. A catalog track
+absent from the model returns `404`, and a missing recommended catalog row
+returns `503`. This is item-factor similarity, not a claim about audio or
+semantic similarity, and it has not been separately evaluated.
+
+A full local flow with the 254,730-track
 sample, a temporary SQLite database, registration, fallback, ALS inference,
 and exposure logging
 peaked at about 294 MB of resident memory on the development Mac; this is a

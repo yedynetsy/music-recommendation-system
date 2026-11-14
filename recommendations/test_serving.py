@@ -63,3 +63,17 @@ def test_artifact_rejects_wrong_version_and_duplicate_ids(tmp_path):
     np.savez(wrong, format_version=np.array(99))
     with pytest.raises(ValueError, match="unsupported"):
         ServingModel.load(wrong)
+
+
+def test_similar_tracks_uses_cosine_and_excludes_zero_factors():
+    model = ServingModel(
+        ["seed", "b", "a", "zero", "far"],
+        np.array([[10., 0.], [1., 1.], [1., 1.], [0., 0.], [0., 1.]], dtype=np.float32),
+        np.ones(5, dtype=np.int64), 10.0, 0.05, "v1", CUTOFF.isoformat(),
+    )
+    assert model.similar_tracks("seed", 10) == ["a", "b", "far"]
+    assert model.similar_tracks("zero", 10) == []
+    with pytest.raises(KeyError):
+        model.similar_tracks("missing", 1)
+    with pytest.raises(ValueError, match="positive"):
+        model.similar_tracks("seed", 0)

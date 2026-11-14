@@ -72,6 +72,7 @@ class ServingModel:
         self.track_index = {track_id: index for index, track_id in enumerate(self.track_ids)}
         factors = self.item_factors.astype(np.float64)
         self.gram = factors.T @ factors
+        self.item_norms = np.linalg.norm(self.item_factors, axis=1)
         self.popular_order = np.lexsort((np.asarray(self.track_ids), -self.popularity))
 
     @classmethod
@@ -120,3 +121,22 @@ class ServingModel:
         scores[list(known)] = -np.inf
         order = np.argsort(-scores, kind="stable")[:min(k, len(self.track_ids) - len(known))]
         return "als", [self.track_ids[index] for index in order]
+
+    def similar_tracks(self, track_id: str, k: int) -> list[str]:
+        """Rank known tracks by cosine similarity of their ALS item factors."""
+        if k < 1:
+            raise ValueError("k must be positive")
+        index = self.track_index.get(track_id)
+        if index is None:
+            raise KeyError(track_id)
+        seed_norm = self.item_norms[index]
+        if seed_norm == 0:
+            return []
+        with threadpool_limits(limits=1, user_api="blas"):
+            scores = self.item_factors @ self.item_factors[index]
+        valid = (self.item_norms > 0)
+        valid[index] = False
+        candidates = np.flatnonzero(valid)
+        similarity = scores[candidates] / (self.item_norms[candidates] * seed_norm)
+        order = np.lexsort((np.asarray(self.track_ids)[candidates], -similarity))
+        return [self.track_ids[candidates[position]] for position in order[:k]]

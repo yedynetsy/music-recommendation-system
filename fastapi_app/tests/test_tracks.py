@@ -128,3 +128,36 @@ def test_new_app_users_have_separate_listening_profiles(client, test_engine):
     assert regular.json()["items"][0]["mbid"] == SECOND
     with Session(test_engine) as session:
         assert session.scalar(select(ListenRow.id).where(ListenRow.user_id == 2)) is None
+
+
+def test_similar_tracks_use_mbid_and_log_exposures(client, test_engine):
+    add_tracks(test_engine)
+    app.dependency_overrides[get_serving_model] = serving_model
+    url = f"/api/tracks/{FIRST}/similar/?limit=2"
+    assert client.get(url).status_code == 401
+    response = client.get(url, headers=USER_HEADERS)
+    assert response.status_code == 200
+    assert response.json()["source"] == "similar"
+    assert response.json()["model_version"] == "test-model"
+    assert [item["mbid"] for item in response.json()["items"]] == [SECOND, THIRD]
+    assert [item["name"] for item in response.json()["items"]] == ["Same Name", "Other"]
+    with Session(test_engine) as session:
+        rows = list(session.scalars(select(ExposureRow).order_by(ExposureRow.rank)))
+        assert [(row.track_mbid, row.rank, row.source, row.user_id) for row in rows] == [
+            (SECOND, 1, "similar", 2), (THIRD, 2, "similar", 2)
+        ]
+        assert session.scalar(select(ListenRow.id)) is None
+
+
+def test_similar_tracks_reject_missing_seed_and_catalog_mismatch(client, test_engine):
+    add_tracks(test_engine)
+    app.dependency_overrides[get_serving_model] = serving_model
+    assert client.get(f"/api/tracks/{FUTURE}/similar/", headers=USER_HEADERS).status_code == 404
+    with Session(test_engine) as session:
+        session.add(TrackRow(mbid=FUTURE, name="Unmodeled"))
+        session.delete(session.get(TrackRow, SECOND))
+        session.commit()
+    assert client.get(f"/api/tracks/{FUTURE}/similar/", headers=USER_HEADERS).status_code == 404
+    assert client.get(f"/api/tracks/{FIRST}/similar/", headers=USER_HEADERS).status_code == 503
+    with Session(test_engine) as session:
+        assert session.scalar(select(ExposureRow.id)) is None

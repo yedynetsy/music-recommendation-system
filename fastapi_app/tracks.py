@@ -71,6 +71,34 @@ def record_listen(track_mbid: UUID, user: UserRow = Depends(authenticated_user),
     return event
 
 
+@router.get("/api/tracks/{track_mbid}/similar/", response_model=RecommendationResponse)
+def similar_tracks(track_mbid: UUID, limit: int = Query(10, ge=1, le=50),
+                   user: UserRow = Depends(authenticated_user),
+                   model: ServingModel = Depends(get_serving_model),
+                   session: Session = Depends(get_session)) -> RecommendationResponse:
+    seed_id = str(track_mbid)
+    if session.get(TrackRow, seed_id) is None:
+        raise HTTPException(404, detail="Track not found.")
+    if seed_id not in model.track_index:
+        raise HTTPException(404, detail="Track is absent from the recommendation model.")
+    track_ids = model.similar_tracks(seed_id, limit)
+    tracks = {track.mbid: track for track in session.scalars(
+        select(TrackRow).where(TrackRow.mbid.in_(track_ids))
+    )}
+    if len(tracks) != len(track_ids):
+        raise HTTPException(503, detail="Recommendation model and track catalog differ.")
+    now = datetime.now(timezone.utc)
+    session.add_all([
+        ExposureRow(user_id=user.id, track_mbid=track_id, rank=rank,
+                    source="similar", model_version=model.model_version, created_at=now)
+        for rank, track_id in enumerate(track_ids, 1)
+    ])
+    session.commit()
+    return RecommendationResponse(source="similar", model_version=model.model_version,
+                                  items=[TrackResponse.model_validate(tracks[track_id])
+                                         for track_id in track_ids])
+
+
 @router.get("/api/onboarding/artists/search/", response_model=list[CatalogArtistResponse])
 def search_catalog_artists(query: str = Query(min_length=1),
                            limit: int = Query(20, ge=1, le=50),
