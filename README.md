@@ -1,7 +1,7 @@
 # Music Recommendation System
 
 This project has a Django/DRF API for users, artists, and albums. A separate
-FastAPI app now serves read-only artist catalog routes. The framework-independent
+FastAPI app now serves artist catalog routes. The framework-independent
 `recommendations` package contains the offline recommendation experiments.
 
 ## FastAPI artist catalog
@@ -15,11 +15,16 @@ python -m uvicorn fastapi_app.main:app --port 8001
 ```
 
 `GET /api/artists/` lists artists by name. `GET /api/artists/{id}/` returns one
-artist or `404`. Both routes are public and return the same artist fields as
-the Django API. The default database is the project's local `db.sqlite3`;
-`MUSIC_DATABASE_URL` can override the SQLAlchemy connection URL. Only local
-SQLite behavior has been verified. Django still serves artist writes and the
-user and album routes. The FastAPI app is a separate process during migration.
+artist or `404`. Both routes are public. `POST /api/artists/` and `PUT`, `PATCH`,
+and `DELETE /api/artists/{id}/` require an active staff user's Django REST
+Framework token in the `Authorization: Token <key>` header. The Django login
+endpoint (`POST /api/user/login/` on the Django server) issues these tokens.
+Invalid artist input returns `400`; deleting an artist with albums returns
+`409` and keeps the artist. The default database is the project's local
+`db.sqlite3`; `MUSIC_DATABASE_URL` can override the SQLAlchemy connection URL.
+Only local SQLite behavior has been verified. Django still serves the user and
+album routes and retains its own artist routes on its separate server during
+migration. The FastAPI app does not create or migrate database tables.
 
 ## Last.fm 1K development sample
 
