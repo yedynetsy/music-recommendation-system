@@ -1,13 +1,14 @@
 # Music Recommendation System
 
 This project has a Django/DRF API for users, artists, and albums. A separate
-FastAPI app now serves artist catalog routes. The framework-independent
-`recommendations` package contains the offline recommendation experiments.
+FastAPI app now serves user authentication and the artist and album catalog.
+The framework-independent `recommendations` package contains the offline
+recommendation experiments.
 
-## FastAPI artist catalog
+## FastAPI catalog and authentication
 
-The FastAPI app reads the existing `artists_artist` table through SQLAlchemy.
-Django migrations still own that table, so run them before starting against a
+The FastAPI app reads the existing artist and album tables through SQLAlchemy.
+Django migrations still own those tables, so run them before starting against a
 fresh local database. From the repository root, with dependencies installed:
 
 ```sh
@@ -29,9 +30,18 @@ and `DELETE /api/artists/{id}/` require an active staff user's token in the
 Invalid artist input returns `400`; deleting an artist with albums returns
 `409` and keeps the artist. The default database is the project's local
 `db.sqlite3`; `MUSIC_DATABASE_URL` can override the SQLAlchemy connection URL.
-Only local SQLite behavior has been verified. Django still serves the album
-routes and retains its own user and artist routes on its separate server during
-migration. The FastAPI app does not create or migrate database tables.
+
+`GET /api/albums/` lists albums by name and `GET /api/albums/{id}/` returns an
+album with both `artist` (ID) and `artist_detail` (artist object). Both are
+public. `POST /api/albums/` and `PUT`, `PATCH`, and `DELETE` on
+`/api/albums/{id}/` require an active staff user's token. Creating an album
+requires a name and an existing artist ID; description and release date are
+optional. Invalid input or an unknown artist returns `400`, and an unknown
+album returns `404`. Updates retain optional fields when omitted; send
+`release_date: null` to clear a date. Only local SQLite behavior has been
+verified. Django retains its user, artist, and album routes on its separate
+server during migration. The FastAPI app does not create or migrate tables;
+Django migrations still own their schema.
 
 ## Last.fm 1K development sample
 

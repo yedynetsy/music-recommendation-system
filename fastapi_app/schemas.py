@@ -1,6 +1,6 @@
 """Request validation and response shapes for the migrated API routes."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import re
 import unicodedata
 
@@ -46,6 +46,56 @@ class ArtistPatch(BaseModel):
     @model_validator(mode="after")
     def reject_explicit_nulls(self):
         for field in self.model_fields_set:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
+
+
+class AlbumResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str
+    release_date: date | None
+    artist: int = Field(validation_alias="artist_id")
+    artist_detail: ArtistResponse = Field(validation_alias="artist")
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_timestamp(self, value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class AlbumWrite(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=255)
+    description: str = ""
+    release_date: date | None = None
+    artist: int
+
+    @model_validator(mode="after")
+    def reject_null_description(self):
+        if self.description is None:
+            raise ValueError("description cannot be null")
+        return self
+
+
+class AlbumPatch(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    release_date: date | None = None
+    artist: int | None = None
+
+    @model_validator(mode="after")
+    def reject_explicit_nulls(self):
+        for field in self.model_fields_set & {"name", "description", "artist"}:
             if getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self
