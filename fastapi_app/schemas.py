@@ -1,6 +1,7 @@
 """Request validation and response shapes for the API routes."""
 
 from datetime import date, datetime, timezone
+from typing import Literal
 import re
 import unicodedata
 
@@ -133,3 +134,31 @@ class LoginInput(BaseModel):
 class TokenResponse(BaseModel):
     token: str
     username: str
+
+
+class TrackResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    mbid: str
+    name: str | None
+    artist_mbid: str | None
+    artist_name: str | None
+
+
+class ListenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    track_mbid: str
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_timestamp(self, value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class RecommendationResponse(BaseModel):
+    source: Literal["als", "popularity"]
+    model_version: str
+    items: list[TrackResponse]

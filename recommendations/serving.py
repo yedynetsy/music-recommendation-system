@@ -1,0 +1,122 @@
+"""Portable ALS item factors and new-user inference without retraining."""
+
+import hashlib
+import json
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Mapping
+
+import numpy as np
+from threadpoolctl import threadpool_limits
+
+from .als import ALSConfig, ALSRecommender
+from .evaluation import EvaluationData
+
+
+ARTIFACT_VERSION = 1
+
+
+def save_artifact(path: Path, model: ALSRecommender, data: EvaluationData,
+                  cutoff: datetime, config: ALSConfig, source_sha256: str) -> str:
+    """Atomically save only item factors and metadata; no listener identities."""
+    if cutoff.tzinfo is None:
+        raise ValueError("cutoff must include a timezone")
+    if not path.parent.is_dir():
+        raise ValueError("artifact parent directory does not exist")
+    identity = json.dumps({"cutoff": cutoff.isoformat(), "config": asdict(config),
+                           "source_sha256": source_sha256}, sort_keys=True)
+    factors = model.model.item_factors.astype(np.float32, copy=False)
+    digest = hashlib.sha256(identity.encode())
+    digest.update(factors.tobytes())
+    model_version = digest.hexdigest()[:16]
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("wb") as target:
+            np.savez_compressed(
+                target, format_version=np.array(ARTIFACT_VERSION),
+                model_version=np.array(model_version), cutoff=np.array(cutoff.isoformat()),
+                source_sha256=np.array(source_sha256),
+                track_ids=np.asarray(model.track_ids),
+                item_factors=factors,
+                popularity=np.asarray([data.popularity[track_id]
+                                       for track_id in model.track_ids], dtype=np.int64),
+                alpha=np.array(config.alpha), regularization=np.array(config.regularization),
+            )
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return model_version
+
+
+@dataclass
+class ServingModel:
+    track_ids: list[str]
+    item_factors: np.ndarray
+    popularity: np.ndarray
+    alpha: float
+    regularization: float
+    model_version: str
+    cutoff: str
+
+    def __post_init__(self) -> None:
+        if not self.track_ids or len(self.track_ids) != len(set(self.track_ids)):
+            raise ValueError("artifact needs unique track IDs")
+        if self.item_factors.ndim != 2 or self.item_factors.shape[0] != len(self.track_ids):
+            raise ValueError("artifact has mismatched item factors")
+        if self.popularity.shape != (len(self.track_ids),):
+            raise ValueError("artifact has mismatched popularity")
+        if self.alpha <= 0 or self.regularization <= 0 or not np.isfinite(self.item_factors).all():
+            raise ValueError("artifact contains invalid factors or parameters")
+        self.track_index = {track_id: index for index, track_id in enumerate(self.track_ids)}
+        factors = self.item_factors.astype(np.float64)
+        self.gram = factors.T @ factors
+        self.popular_order = np.lexsort((np.asarray(self.track_ids), -self.popularity))
+
+    @classmethod
+    def load(cls, path: Path) -> "ServingModel":
+        with np.load(path, allow_pickle=False) as artifact:
+            if int(artifact["format_version"]) != ARTIFACT_VERSION:
+                raise ValueError("unsupported model artifact version")
+            return cls(
+                track_ids=artifact["track_ids"].tolist(),
+                item_factors=artifact["item_factors"],
+                popularity=artifact["popularity"],
+                alpha=float(artifact["alpha"]),
+                regularization=float(artifact["regularization"]),
+                model_version=str(artifact["model_version"]),
+                cutoff=str(artifact["cutoff"]),
+            )
+
+    def infer_user_factor(self, listens: Mapping[str, int]) -> np.ndarray | None:
+        """Solve one new profile from app listens using fixed item factors."""
+        known = {self.track_index[track_id]: count for track_id, count in listens.items()
+                 if count > 0 and track_id in self.track_index}
+        if not known:
+            return None
+        matrix = self.gram.copy()
+        matrix.flat[::matrix.shape[0] + 1] += self.regularization
+        vector = np.zeros(matrix.shape[0], dtype=np.float64)
+        for item_index, count in known.items():
+            confidence = self.alpha * np.log1p(count)
+            factor = self.item_factors[item_index].astype(np.float64)
+            matrix += (confidence - 1) * np.outer(factor, factor)
+            vector += confidence * factor
+        return np.linalg.solve(matrix, vector)
+
+    def rank(self, listens: Mapping[str, int], k: int) -> tuple[str, list[str]]:
+        """Use an inferred user factor, or popularity with no known listens."""
+        if k < 1:
+            raise ValueError("k must be positive")
+        known = {self.track_index[track_id] for track_id, count in listens.items()
+                 if count > 0 and track_id in self.track_index}
+        if not known:
+            return "popularity", [self.track_ids[index] for index in self.popular_order[:k]]
+        user_factor = self.infer_user_factor(listens)
+        assert user_factor is not None
+        with threadpool_limits(limits=1, user_api="blas"):
+            scores = self.item_factors @ user_factor.astype(np.float32)
+        scores[list(known)] = -np.inf
+        order = np.argsort(-scores, kind="stable")[:min(k, len(self.track_ids) - len(known))]
+        return "als", [self.track_ids[index] for index in order]

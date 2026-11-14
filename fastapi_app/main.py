@@ -15,12 +15,14 @@ from .albums import UnknownArtistError, router as album_router
 from .database import get_session
 from .models import AlbumRow, ArtistRow
 from .schemas import ArtistPatch, ArtistResponse, ArtistWrite
+from .tracks import router as track_router
 from .users import router as user_router
 
 
 app = FastAPI(title="Music Recommendation API")
 app.include_router(user_router)
 app.include_router(album_router)
+app.include_router(track_router)
 
 
 @app.exception_handler(UnknownArtistError)

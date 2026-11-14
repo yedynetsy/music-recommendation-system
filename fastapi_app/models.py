@@ -56,3 +56,33 @@ class AlbumRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     artist: Mapped[ArtistRow] = relationship()
+
+
+class TrackRow(Base):
+    __tablename__ = "tracks_track"
+
+    mbid: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    artist_mbid: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    artist_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ListenRow(Base):
+    __tablename__ = "recommendation_listen"
+
+    id: Mapped[int] = mapped_column(primary_id, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users_user.id"), index=True)
+    track_mbid: Mapped[str] = mapped_column(String(36), ForeignKey("tracks_track.mbid"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ExposureRow(Base):
+    __tablename__ = "recommendation_exposure"
+
+    id: Mapped[int] = mapped_column(primary_id, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users_user.id"), index=True)
+    track_mbid: Mapped[str] = mapped_column(String(36), ForeignKey("tracks_track.mbid"))
+    rank: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(16))
+    model_version: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

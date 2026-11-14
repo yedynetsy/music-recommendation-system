@@ -32,6 +32,7 @@ def test_fresh_migration_supports_catalog_and_authentication(tmp_path, monkeypat
     try:
         tables = set(inspect(engine).get_table_names())
         assert {"users_user", "authtoken_token", "artists_artist", "albums_album",
+                "tracks_track", "recommendation_listen", "recommendation_exposure",
                 "alembic_version"} <= tables
         assert "django_session" not in tables
 
