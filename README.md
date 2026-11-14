@@ -1,8 +1,25 @@
 # Music Recommendation System
 
-This project currently has a Django/DRF API for users, artists, and albums.
-The framework-independent `recommendations` package begins the offline
-recommendation pipeline. The API has not yet been migrated to FastAPI.
+This project has a Django/DRF API for users, artists, and albums. A separate
+FastAPI app now serves read-only artist catalog routes. The framework-independent
+`recommendations` package contains the offline recommendation experiments.
+
+## FastAPI artist catalog
+
+The FastAPI app reads the existing `artists_artist` table through SQLAlchemy.
+Django migrations still own that table, so run them before starting against a
+fresh local database. From the repository root, with dependencies installed:
+
+```sh
+python -m uvicorn fastapi_app.main:app --port 8001
+```
+
+`GET /api/artists/` lists artists by name. `GET /api/artists/{id}/` returns one
+artist or `404`. Both routes are public and return the same artist fields as
+the Django API. The default database is the project's local `db.sqlite3`;
+`MUSIC_DATABASE_URL` can override the SQLAlchemy connection URL. Only local
+SQLite behavior has been verified. Django still serves artist writes and the
+user and album routes. The FastAPI app is a separate process during migration.
 
 ## Last.fm 1K development sample
 
